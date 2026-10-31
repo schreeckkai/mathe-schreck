@@ -14,7 +14,7 @@
     h1 { margin:0; color:var(--heading); font-size:clamp(2rem,6vw,3.5rem); letter-spacing:.02em; }
     header p { margin:.3rem 0 0; color:var(--muted); }
     main { display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr); gap:1rem; align-items:start; }
-    .panel, #sheet, #plots { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1rem; }
+    .panel, #sheet { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1rem; }
     label { display:block; margin:.55rem 0 .25rem; font-weight:650; }
     input, textarea, select, button { font:inherit; }
     input[type=text], textarea, select { width:100%; padding:.65rem; border:1px solid #3b2a20; border-radius:7px; background:var(--field); color:var(--text); }
@@ -32,10 +32,8 @@
     #sheet { min-height:300px; overflow:auto; }
     #sheet-title { display:none; margin:0 0 1rem; padding-bottom:.5rem; border-bottom:1px solid #30363d; }
     #preview { color:#f4f6f8; }
-    #plots { grid-column:1 / -1; display:none; }
-    #plots.has-plots { display:block; }
-    .plot-card { border-top:1px solid #30363d; padding-top:1rem; margin-top:1rem; }
-    .plot-card:first-child { border-top:0; padding-top:0; margin-top:0; }
+    .inline-plot { width:100%; margin:1.4rem 0; padding:1rem 0; border-top:1px solid #30363d; border-bottom:1px solid #30363d; }
+    .plot-card { width:100%; }
     .plot-title { margin:0 0 .4rem; color:var(--text); font-size:1rem; }
     .plot { width:100%; min-height:360px; }
     .hint { color:var(--muted); font-size:.86rem; margin:.5rem 0 0; }
@@ -88,11 +86,6 @@
     <section id="sheet" aria-label="Vorschau">
       <h2 id="sheet-title"></h2>
       <div id="preview"></div>
-    </section>
-    <section id="plots" aria-label="Grafiken">
-      <h2 class="plot-title">Grafiken</h2>
-      <p class="hint">Unterstützt werden häufige PGFPlots-Befehle wie <code>\addplot</code> und <code>\addplot3</code>. Die Grafiken werden direkt im Browser erzeugt.</p>
-      <div id="plot-list"></div>
     </section>
   </main>
 
@@ -151,7 +144,6 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
       const save = () => { try { localStorage.setItem('mathe-schreck', JSON.stringify({c:code.value,t:title.value,p:pure.checked,s:size.value})); } catch (_) {} };
       const setStatus = (message, kind='') => { status.textContent = message; status.className = kind; };
 
-      const plotList = $('plot-list'), plots = $('plots');
       const number = value => Number.parseFloat(value);
       const expr = (source, variables) => {
         const safe = source.replace(/\\left|\\right/g,'').replace(/\\sqrt\s*\{/g,'sqrt(').replace(/\}/g,')').replace(/\^/g,'**').replace(/\bpi\b/g,'PI');
@@ -182,16 +174,12 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
           return {options, plots, labels};
         }));
       }
-      function renderPlots(source) {
-        plotList.replaceChildren();
-        const groups = parsePlots(source);
-        plots.classList.toggle('has-plots', groups.length > 0 && groups.some(group => group.plots.length));
-        if (!groups.length || !window.Plotly) return;
-        groups.forEach((group, index) => {
-          const card = document.createElement('div'); card.className='plot-card';
+      function renderPlotGroup(group, target, index) {
+        if (!window.Plotly) return;
           const is3d = group.plots.some(item => item.is3d);
           const heading = document.createElement('h3'); heading.className='plot-title'; heading.textContent = is3d ? `3D-Grafik ${index + 1}` : `2D-Grafik ${index + 1}`;
-          const target = document.createElement('div'); target.className='plot'; target.id=`plot-${index}`; card.append(heading,target); plotList.append(card);
+          target.append(heading);
+          const chart = document.createElement('div'); chart.className='plot'; target.append(chart);
           try {
             if (is3d) {
               const xr=[bound(group.options,'xmin',-2.5),bound(group.options,'xmax',2.5)], yr=[bound(group.options,'ymin',-2.5),bound(group.options,'ymax',2.5)], zr=[bound(group.options,'zmin',-2.5),bound(group.options,'zmax',2.5)];
@@ -206,14 +194,37 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
                 }
               });
               if (group.labels.length) traces.push({x:group.labels.map(l=>l.x),y:group.labels.map(l=>l.y),z:group.labels.map(l=>l.z),type:'scatter3d',mode:'text',text:group.labels.map(l=>l.text),textfont:{color:'#edf1f4',size:14}});
-              Plotly.newPlot(target,traces,{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:0,r:0,t:10,b:0},scene:{xaxis:{range:xr,gridcolor:'#3b424a'},yaxis:{range:yr,gridcolor:'#3b424a'},zaxis:{range:zr,gridcolor:'#3b424a'}}},{responsive:true,displaylogo:false});
+              Plotly.newPlot(chart,traces,{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:0,r:0,t:10,b:0},scene:{xaxis:{range:xr,gridcolor:'#3b424a'},yaxis:{range:yr,gridcolor:'#3b424a'},zaxis:{range:zr,gridcolor:'#3b424a'}}},{responsive:true,displaylogo:false});
             } else {
               const colors=['#d19a74','#7fa8d1','#a8c98b','#c88ac7'];
               const traces=group.plots.filter(item=>!item.is3d).map((item,index)=>{ const xr=range(item.options,'domain',[-5,5]), f=expr(item.formula,['x']); const xs=Array.from({length:250},(_,i)=>xr[0]+(xr[1]-xr[0])*i/249); return {x:xs,y:xs.map(x=>{try{return f(x)}catch(_){return NaN}}),mode:'lines',line:{color:colors[index%colors.length],width:3}}; });
-              Plotly.newPlot(target,traces,{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:48,r:18,t:10,b:42},xaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'},yaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'}},{responsive:true,displaylogo:false});
+              Plotly.newPlot(chart,traces,{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:48,r:18,t:10,b:42},xaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'},yaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'}},{responsive:true,displaylogo:false});
             }
-          } catch (error) { target.textContent=`Grafik konnte nicht gelesen werden: ${error.message}`; target.className='hint'; }
+          } catch (error) { chart.textContent=`Grafik konnte nicht gelesen werden: ${error.message}`; chart.className='hint'; }
+      }
+      function cleanTextSegment(value) {
+        return value.replace(/%[^\n]*/g, '')
+          .replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, '')
+          .replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, '')
+          .replace(/\\pgfplotsset\{[^}]*\}/g, '')
+          .replace(/\\begin\{(?:document|tikzpicture)\}|\\end\{(?:document|tikzpicture)\}/g, '')
+          .replace(/\\begin\{axis\}[\s\S]*?\\end\{axis\}/g, '')
+          .trim();
+      }
+      function renderInline(source) {
+        preview.replaceChildren();
+        const graphPattern = /\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g;
+        const blocks = [...source.matchAll(graphPattern)];
+        const groups = parsePlots(source);
+        let cursor = 0;
+        blocks.forEach((block, index) => {
+          const before = cleanTextSegment(source.slice(cursor, block.index));
+          if (before) { const text = document.createElement('div'); text.className='text-segment'; text.textContent=math(before,pure.checked); preview.append(text); }
+          if (groups[index]?.plots.length) { const target=document.createElement('div'); target.className='inline-plot'; preview.append(target); renderPlotGroup(groups[index],target,index); }
+          cursor = block.index + block[0].length;
         });
+        const after = cleanTextSegment(source.slice(cursor));
+        if (after) { const text=document.createElement('div'); text.className='text-segment'; text.textContent=math(after,pure.checked); preview.append(text); }
       }
 
       async function render() {
@@ -222,16 +233,7 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         sheetTitle.style.display = sheetTitle.textContent ? 'block' : 'none';
         preview.style.fontSize = `${size.value}rem`;
         preview.style.whiteSpace = pure.checked ? 'normal' : 'pre-wrap';
-        const formulaText = raw
-          .replace(/%[^\n]*/g, '')
-          .replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, '')
-          .replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, '')
-          .replace(/\\pgfplotsset\{[^}]*\}/g, '')
-          .replace(/\\begin\{(?:document|tikzpicture)\}|\\end\{(?:document|tikzpicture)\}/g, '')
-          .replace(/\\begin\{axis\}[\s\S]*?\\end\{axis\}/g, '')
-          .trim();
-        preview.textContent = formulaText ? math(formulaText, pure.checked) : '';
-        renderPlots(raw);
+        renderInline(raw);
         setStatus(''); save();
         if (!raw || !window.MathJax?.typesetPromise) return;
         try {
