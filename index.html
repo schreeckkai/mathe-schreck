@@ -39,6 +39,11 @@
     .plot-title { margin:0 0 .4rem; color:var(--text); font-size:1rem; }
     .plot { width:100%; min-height:360px; }
     .hint { color:var(--muted); font-size:.86rem; margin:.5rem 0 0; }
+    details.help { margin-top:.9rem; border-top:1px solid #30363d; padding-top:.75rem; }
+    details.help summary { cursor:pointer; color:var(--muted); font-size:.9rem; }
+    .prompt { display:grid; grid-template-columns:1fr auto; gap:.5rem; align-items:start; margin-top:.7rem; }
+    .prompt p { margin:0; padding:.65rem; border:1px solid #30363d; border-radius:7px; background:#0b0d0f; color:var(--text); font-size:.9rem; }
+    .prompt button { padding:.45rem .6rem; font-size:.85rem; }
     footer { padding:1rem 0 2rem; color:var(--muted); font-size:.85rem; }
     code { color:#c6cdd3; }
     @media (max-width:820px) { main { grid-template-columns:1fr; } textarea { min-height:240px; } }
@@ -82,6 +87,12 @@
           <option value="">Beispiel laden …</option><option value="pq">p-q-Formel</option><option value="integral">Integral</option><option value="steps">Umformung</option><option value="text">Text mit Formeln</option><option value="matrix">Matrix</option><option value="graph2d">2D-Parabel</option><option value="graph3d">3D-Kugel</option>
         </select>
       </div>
+      <details class="help">
+        <summary>Kurz-Hilfe für KI-Prompts</summary>
+        <div class="prompt"><p id="prompt-solution">Löse diese Aufgabe und gib die vollständige Lösung als LaTeX-Code aus.</p><button type="button" data-prompt="prompt-solution">Kopieren</button></div>
+        <div class="prompt"><p id="prompt-graph">Löse diese Aufgabe inklusive notwendiger Graphen und gib alles als LaTeX-Code aus.</p><button type="button" data-prompt="prompt-graph">Kopieren</button></div>
+        <div class="prompt"><p id="prompt-fix">Korrigiere diesen LaTeX-Code und gib nur die korrigierte Version aus.</p><button type="button" data-prompt="prompt-fix">Kopieren</button></div>
+      </details>
       <p id="status" role="status" aria-live="polite"></p>
     </section>
 
@@ -218,6 +229,11 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         catch (_) { setStatus('Der Link steht in der Adresszeile und kann dort kopiert werden.', 'warn'); }
       });
       $('examples').addEventListener('change', event => { if (!event.target.value) return; code.value=examples[event.target.value]; pure.checked=!['text','graph2d','graph3d'].includes(event.target.value); event.target.value=''; render(); });
+      document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', async () => {
+        const prompt = document.getElementById(button.dataset.prompt).textContent;
+        try { await navigator.clipboard.writeText(prompt); setStatus('Prompt kopiert.', 'warn'); }
+        catch (_) { setStatus('Kopieren nicht möglich – Prompt bitte markieren und kopieren.', 'warn'); }
+      }));
       document.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); render(); } });
 
       (() => {
