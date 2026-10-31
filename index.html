@@ -152,12 +152,12 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         return match ? [number(match[1]), number(match[2])] : fallback;
       };
       function parsePlots(source) {
-        const blocks = [...source.matchAll(/\\begin\{tikzpicture\}([\\s\\S]*?)\\end\{tikzpicture\}/g)].map(m => m[1]);
+        const blocks = [...source.matchAll(/\\begin\{tikzpicture\}([\s\S]*?)\\end\{tikzpicture\}/g)].map(m => m[1]);
         return blocks.flatMap(block => {
-          const axis = block.match(/\\begin\{axis\}([\\s\\S]*?)\\end\{axis\}/);
+          const axis = block.match(/\\begin\{axis\}([\s\S]*?)\\end\{axis\}/);
           if (!axis) return [];
-          const options = axis[1].match(/\[([\\s\\S]*?)\]/)?.[1] || '';
-          return [...axis[1].matchAll(/\\addplot(3)?(?:\[([\\s\\S]*?)\])?\s*\{([\\s\\S]*?)\}\s*;/g)].map(match => ({
+          const options = axis[1].match(/\[([\s\S]*?)\]/)?.[1] || '';
+          return [...axis[1].matchAll(/\\addplot(3)?(?:\[([\s\S]*?)\])?\s*\{([\s\S]*?)\}\s*;/g)].map(match => ({
             is3d: Boolean(match[1]), options: match[2] || '', formula: match[3].trim(), axisOptions: options
           }));
         });
@@ -192,7 +192,7 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         sheetTitle.style.display = sheetTitle.textContent ? 'block' : 'none';
         preview.style.fontSize = `${size.value}rem`;
         preview.style.whiteSpace = pure.checked ? 'normal' : 'pre-wrap';
-        const formulaText = raw.replace(/\\begin\{tikzpicture\}[\\s\\S]*?\\end\{tikzpicture\}/g, '').trim();
+        const formulaText = raw.replace(/\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
         preview.textContent = formulaText ? math(formulaText, pure.checked) : '';
         renderPlots(raw);
         setStatus(''); save();
