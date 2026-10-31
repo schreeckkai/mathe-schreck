@@ -9,7 +9,7 @@ Eine kleine, datensparsame GitHub-Pages-Seite zum Rendern von LaTeX-Matheaufgabe
 - vollständige PGFPlots-Dokumente mit Präambel, mehreren `\\addplot3`-Elementen und parametrischen Geraden
 - Beispiele für Matrix, Parabel und 3D-Ebenen mit Schnittgerade im Auswahlmenü
 
-Bei TikZ/PGFPlots-Code wird die Grafik separat unter der mathematischen Vorschau angezeigt. Präambel, Kommentare und Dokument-Umgebungen werden beim Darstellen automatisch ignoriert. Mehrere 3D-Flächen, parametrische Geraden und einfache `\\node`-Beschriftungen werden gemeinsam dargestellt. Die Eingabe selbst bleibt unverändert und kann weiterhin als Link geteilt werden.
+Bei TikZ/PGFPlots-Code wird die Grafik direkt an ihrer Stelle im Lösungstext angezeigt. Präambel, Kommentare und Dokument-Umgebungen werden beim Darstellen automatisch ignoriert. Mehrere 3D-Flächen, parametrische Geraden und einfache `\\node`-Beschriftungen werden gemeinsam dargestellt. Die Eingabe selbst bleibt unverändert und kann weiterhin als Link geteilt werden.
 
 ## Lokal testen
 
