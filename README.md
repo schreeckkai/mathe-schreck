@@ -6,10 +6,10 @@ Eine kleine, datensparsame GitHub-Pages-Seite zum Rendern von LaTeX-Matheaufgabe
 
 - Formeln, Brüche, Integrale, Matrizen und Umformungen über MathJax
 - 2D-Funktionsgraphen aus häufigem PGFPlots-Code mit `\\addplot`
-- einfache 3D-Flächen aus PGFPlots-Code mit `\\addplot3`
-- Beispiele für Matrix, Parabel und 3D-Kugel/Fläche im Auswahlmenü
+- vollständige PGFPlots-Dokumente mit Präambel, mehreren `\\addplot3`-Elementen und parametrischen Geraden
+- Beispiele für Matrix, Parabel und 3D-Ebenen mit Schnittgerade im Auswahlmenü
 
-Bei TikZ/PGFPlots-Code wird die Grafik separat unter der mathematischen Vorschau angezeigt. Die Eingabe selbst bleibt unverändert und kann weiterhin als Link geteilt werden.
+Bei TikZ/PGFPlots-Code wird die Grafik separat unter der mathematischen Vorschau angezeigt. Präambel, Kommentare und Dokument-Umgebungen werden beim Darstellen automatisch ignoriert. Mehrere 3D-Flächen, parametrische Geraden und einfache `\\node`-Beschriftungen werden gemeinsam dargestellt. Die Eingabe selbst bleibt unverändert und kann weiterhin als Link geteilt werden.
 
 ## Lokal testen
 
