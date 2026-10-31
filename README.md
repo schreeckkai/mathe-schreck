@@ -2,9 +2,18 @@
 
 Eine kleine, datensparsame GitHub-Pages-Seite zum Rendern von LaTeX-Matheaufgaben im Browser.
 
+## Unterstützte Inhalte
+
+- Formeln, Brüche, Integrale, Matrizen und Umformungen über MathJax
+- 2D-Funktionsgraphen aus häufigem PGFPlots-Code mit `\\addplot`
+- einfache 3D-Flächen aus PGFPlots-Code mit `\\addplot3`
+- Beispiele für Matrix, Parabel und 3D-Kugel/Fläche im Auswahlmenü
+
+Bei TikZ/PGFPlots-Code wird die Grafik separat unter der mathematischen Vorschau angezeigt. Die Eingabe selbst bleibt unverändert und kann weiterhin als Link geteilt werden.
+
 ## Lokal testen
 
-Die Datei `index.html` kann direkt geöffnet werden. Für den vollständigen Betrieb ist eine Internetverbindung nötig, weil MathJax derzeit von jsDelivr geladen wird.
+Die Datei `index.html` kann direkt geöffnet werden. Für den vollständigen Betrieb ist eine Internetverbindung nötig, weil MathJax und Plotly von jsDelivr bzw. cdn.plot.ly geladen werden.
 
 ## GitHub Pages
 
