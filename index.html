@@ -39,11 +39,6 @@
     .plot-title { margin:0 0 .4rem; color:var(--text); font-size:1rem; }
     .plot { width:100%; min-height:360px; }
     .hint { color:var(--muted); font-size:.86rem; margin:.5rem 0 0; }
-    details.help { margin-top:.9rem; border-top:1px solid #30363d; padding-top:.75rem; }
-    details.help summary { cursor:pointer; color:var(--muted); font-size:.9rem; }
-    .prompt { display:grid; grid-template-columns:1fr auto; gap:.5rem; align-items:start; margin-top:.7rem; }
-    .prompt p { margin:0; padding:.65rem; border:1px solid #30363d; border-radius:7px; background:#0b0d0f; color:var(--text); font-size:.9rem; }
-    .prompt button { padding:.45rem .6rem; font-size:.85rem; }
     footer { padding:1rem 0 2rem; color:var(--muted); font-size:.85rem; }
     code { color:#c6cdd3; }
     @media (max-width:820px) { main { grid-template-columns:1fr; } textarea { min-height:240px; } }
@@ -87,12 +82,6 @@
           <option value="">Beispiel laden …</option><option value="pq">p-q-Formel</option><option value="integral">Integral</option><option value="steps">Umformung</option><option value="text">Text mit Formeln</option><option value="matrix">Matrix</option><option value="graph2d">2D-Parabel</option><option value="graph3d">3D-Kugel</option>
         </select>
       </div>
-      <details class="help">
-        <summary>Kurz-Hilfe für KI-Prompts</summary>
-        <div class="prompt"><p id="prompt-solution">Löse diese Aufgabe und gib die vollständige Lösung als LaTeX-Code aus.</p><button type="button" data-prompt="prompt-solution">Kopieren</button></div>
-        <div class="prompt"><p id="prompt-graph">Löse diese Aufgabe inklusive notwendiger Graphen und gib alles als LaTeX-Code aus.</p><button type="button" data-prompt="prompt-graph">Kopieren</button></div>
-        <div class="prompt"><p id="prompt-fix">Korrigiere diesen LaTeX-Code und gib nur die korrigierte Version aus.</p><button type="button" data-prompt="prompt-fix">Kopieren</button></div>
-      </details>
       <p id="status" role="status" aria-live="polite"></p>
     </section>
 
@@ -131,12 +120,25 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
 \addplot[red, domain=-3:3, samples=200]{2*x-1};
 \end{axis}
 \end{tikzpicture}`,
-        graph3d: String.raw`\begin{tikzpicture}
-\begin{axis}[view={35}{25}, axis equal]
-\addplot3[surf, domain=-2:2, domain y=-2:2, samples=35]
-  {sqrt(max(0,4-x^2-y^2))};
+        graph3d: String.raw`\documentclass[border=10pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[
+  view={60}{20}, axis lines=center,
+  xmin=-2.5, xmax=2.5, ymin=-2.5, ymax=2.5,
+  zmin=-2.5, zmax=2.5, xlabel={$x$}, ylabel={$y$}, zlabel={$z$},
+  ticks=none, grid=none, clip=false]
+  \addplot3[surf, shader=flat, domain=-2:2, y domain=-2:2] {x};
+  \addplot3[surf, shader=flat, domain=-2:2, y domain=-2:2] {y};
+  \addplot3[very thick, domain=-2:2] ({x},{x},{x});
+  \node at (axis cs: 1.6,-1.6,1.6) {$E_1$};
+  \node at (axis cs: -1.6,1.6,1.6) {$E_2$};
+  \node at (axis cs: 2.1,2.1,2.1) {$g$};
 \end{axis}
-\end{tikzpicture}`
+\end{tikzpicture}
+\end{document}`
       };
 
       window.MathJax = { tex:{ inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']], processEscapes:true }, svg:{fontCache:'local'}, options:{enableMenu:false}, startup:{typeset:false} };
@@ -153,7 +155,7 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
       const number = value => Number.parseFloat(value);
       const expr = (source, variables) => {
         const safe = source.replace(/\\left|\\right/g,'').replace(/\\sqrt\s*\{/g,'sqrt(').replace(/\}/g,')').replace(/\^/g,'**').replace(/\bpi\b/g,'PI');
-        if (!/^[0-9a-zA-Z_+*%().,\-\/ \t**]+$/.test(safe) || /(?:constructor|window|document|eval|function)/i.test(safe)) throw new Error('unsichere oder unbekannte Plot-Funktion');
+        if (!/^[0-9a-zA-Z_+*%().,\-\/ \t**]+$/.test(safe) || /(?:constructor|window|document|eval|function)/i.test(safe)) throw new Error('unbekannte Plot-Funktion');
         const names = variables.join(',');
         const body = `"use strict"; const {sqrt,sin,cos,tan,abs,exp,log,max,min,PI}=Math; return (${safe});`;
         return Function(names, body);
@@ -162,36 +164,52 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         const match = options.match(new RegExp(`${name}\\s*=\\s*([-+]?\\d*\\.?\\d+)\\s*:\\s*([-+]?\\d*\\.?\\d+)`));
         return match ? [number(match[1]), number(match[2])] : fallback;
       };
+      const bound = (options, name, fallback) => {
+        const match = options.match(new RegExp(`${name}\\s*=\\s*([-+]?\\d*\\.?\\d+)`));
+        return match ? number(match[1]) : fallback;
+      };
+      const axisOptions = block => block.match(/\[([\s\S]*?)\]/)?.[1] || '';
       function parsePlots(source) {
-        const blocks = [...source.matchAll(/\\begin\{tikzpicture\}([\s\S]*?)\\end\{tikzpicture\}/g)].map(m => m[1]);
-        return blocks.flatMap(block => {
-          const axis = block.match(/\\begin\{axis\}([\s\S]*?)\\end\{axis\}/);
-          if (!axis) return [];
-          const options = axis[1].match(/\[([\s\S]*?)\]/)?.[1] || '';
-          return [...axis[1].matchAll(/\\addplot(3)?(?:\[([\s\S]*?)\])?\s*\{([\s\S]*?)\}\s*;/g)].map(match => ({
-            is3d: Boolean(match[1]), options: match[2] || '', formula: match[3].trim(), axisOptions: options
-          }));
-        });
+        const sourceWithoutComments = source.replace(/%[^\n]*/g, '');
+        const blocks = [...sourceWithoutComments.matchAll(/\\begin\{tikzpicture\}([\s\S]*?)\\end\{tikzpicture\}/g)].map(m => m[1]);
+        return blocks.flatMap(block => [...block.matchAll(/\\begin\{axis\}([\s\S]*?)\\end\{axis\}/g)].map(axisMatch => {
+          const body = axisMatch[1], options = axisOptions(body), plots = [];
+          const plotRe = /\\addplot(3)?(?:\[([\s\S]*?)\])?\s*(?:\{([\s\S]*?)\}|\(\s*\{([^}]*)\}\s*,\s*\{([^}]*)\}\s*,\s*\{([^}]*)\}\s*\))\s*;/g;
+          for (const match of body.matchAll(plotRe)) {
+            plots.push({is3d:Boolean(match[1]), options:match[2] || '', formula:match[3]?.trim() || '', parametric:match[4] ? [match[4],match[5],match[6]] : null});
+          }
+          const labels = [...body.matchAll(/\\node\s+at\s*\(axis cs:\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)[^$]*\$([^$]+)\$/g)].map(m => ({x:number(m[1]), y:number(m[2]), z:number(m[3]), text:m[4]}));
+          return {options, plots, labels};
+        }));
       }
       function renderPlots(source) {
         plotList.replaceChildren();
-        const items = parsePlots(source);
-        plots.classList.toggle('has-plots', items.length > 0);
-        if (!items.length || !window.Plotly) return;
-        items.forEach((item, index) => {
+        const groups = parsePlots(source);
+        plots.classList.toggle('has-plots', groups.length > 0 && groups.some(group => group.plots.length));
+        if (!groups.length || !window.Plotly) return;
+        groups.forEach((group, index) => {
           const card = document.createElement('div'); card.className='plot-card';
-          const heading = document.createElement('h3'); heading.className='plot-title'; heading.textContent = item.is3d ? `3D-Grafik ${index + 1}` : `2D-Grafik ${index + 1}`;
+          const is3d = group.plots.some(item => item.is3d);
+          const heading = document.createElement('h3'); heading.className='plot-title'; heading.textContent = is3d ? `3D-Grafik ${index + 1}` : `2D-Grafik ${index + 1}`;
           const target = document.createElement('div'); target.className='plot'; target.id=`plot-${index}`; card.append(heading,target); plotList.append(card);
           try {
-            if (item.is3d) {
-              const xr=range(item.axisOptions,'domain',[-2,2]), yr=range(item.axisOptions,'domain y',[-2,2]), f=expr(item.formula,['x','y']);
-              const z=[], xs=[], ys=[]; const steps=35;
-              for(let i=0;i<steps;i++){ const x=xr[0]+(xr[1]-xr[0])*i/(steps-1); xs.push(x); }
-              for(let j=0;j<steps;j++){ const y=yr[0]+(yr[1]-yr[0])*j/(steps-1); ys.push(y); z.push(xs.map(x=>{try{return f(x,y)}catch(_){return NaN}})); }
-              Plotly.newPlot(target,[{x:xs,y:ys,z,type:'surface',colorscale:'Viridis',connectgaps:false}],{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:0,r:0,t:10,b:0},scene:{xaxis:{gridcolor:'#3b424a'},yaxis:{gridcolor:'#3b424a'},zaxis:{gridcolor:'#3b424a'}}},{responsive:true,displaylogo:false});
+            if (is3d) {
+              const xr=[bound(group.options,'xmin',-2.5),bound(group.options,'xmax',2.5)], yr=[bound(group.options,'ymin',-2.5),bound(group.options,'ymax',2.5)], zr=[bound(group.options,'zmin',-2.5),bound(group.options,'zmax',2.5)];
+              const traces=[], steps=35, xs=Array.from({length:steps},(_,i)=>xr[0]+(xr[1]-xr[0])*i/(steps-1)), ys=Array.from({length:steps},(_,i)=>yr[0]+(yr[1]-yr[0])*i/(steps-1));
+              group.plots.filter(item=>item.is3d).forEach(item => {
+                if (item.parametric) {
+                  const t=Array.from({length:200},(_,i)=>xr[0]+(xr[1]-xr[0])*i/199), fs=item.parametric.map(part=>expr(part,['x']));
+                  traces.push({x:t.map(v=>fs[0](v)),y:t.map(v=>fs[1](v)),z:t.map(v=>fs[2](v)),type:'scatter3d',mode:'lines',line:{width:6,color:'#d19a74'}});
+                } else {
+                  const f=expr(item.formula,['x','y']), z=ys.map(y=>xs.map(x=>{try{return f(x,y)}catch(_){return NaN}}));
+                  traces.push({x:xs,y:ys,z,type:'surface',colorscale:traces.length%2?'Reds':'Blues',opacity:.55,showscale:false,connectgaps:false});
+                }
+              });
+              if (group.labels.length) traces.push({x:group.labels.map(l=>l.x),y:group.labels.map(l=>l.y),z:group.labels.map(l=>l.z),type:'scatter3d',mode:'text',text:group.labels.map(l=>l.text),textfont:{color:'#edf1f4',size:14}});
+              Plotly.newPlot(target,traces,{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:0,r:0,t:10,b:0},scene:{xaxis:{range:xr,gridcolor:'#3b424a'},yaxis:{range:yr,gridcolor:'#3b424a'},zaxis:{range:zr,gridcolor:'#3b424a'}}},{responsive:true,displaylogo:false});
             } else {
-              const xr=range(item.options,'domain',[-5,5]), f=expr(item.formula,['x']); const xs=Array.from({length:250},(_,i)=>xr[0]+(xr[1]-xr[0])*i/249); const ys=xs.map(x=>{try{return f(x)}catch(_){return NaN}});
-              Plotly.newPlot(target,[{x:xs,y:ys,mode:'lines',line:{color:'#d19a74',width:3}}],{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:48,r:18,t:10,b:42},xaxis:{gridcolor:'#3b424a',zerolinecolor:'#7e8790'},yaxis:{gridcolor:'#3b424a',zerolinecolor:'#7e8790'}},{responsive:true,displaylogo:false});
+              const item=group.plots[0], xr=range(item.options,'domain',[-5,5]), f=expr(item.formula,['x']); const xs=Array.from({length:250},(_,i)=>xr[0]+(xr[1]-xr[0])*i/249); const ys=xs.map(x=>{try{return f(x)}catch(_){return NaN}});
+              Plotly.newPlot(target,[{x:xs,y:ys,mode:'lines',line:{color:'#d19a74',width:3}}],{paper_bgcolor:'#171a1e',plot_bgcolor:'#171a1e',font:{color:'#edf1f4'},margin:{l:48,r:18,t:10,b:42},xaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'},yaxis:{gridcolor:'#3b424d',zerolinecolor:'#7e8790'}},{responsive:true,displaylogo:false});
             }
           } catch (error) { target.textContent=`Grafik konnte nicht gelesen werden: ${error.message}`; target.className='hint'; }
         });
@@ -203,7 +221,14 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         sheetTitle.style.display = sheetTitle.textContent ? 'block' : 'none';
         preview.style.fontSize = `${size.value}rem`;
         preview.style.whiteSpace = pure.checked ? 'normal' : 'pre-wrap';
-        const formulaText = raw.replace(/\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
+        const formulaText = raw
+          .replace(/%[^\n]*/g, '')
+          .replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, '')
+          .replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, '')
+          .replace(/\\pgfplotsset\{[^}]*\}/g, '')
+          .replace(/\\begin\{(?:document|tikzpicture)\}|\\end\{(?:document|tikzpicture)\}/g, '')
+          .replace(/\\begin\{axis\}[\s\S]*?\\end\{axis\}/g, '')
+          .trim();
         preview.textContent = formulaText ? math(formulaText, pure.checked) : '';
         renderPlots(raw);
         setStatus(''); save();
@@ -229,11 +254,6 @@ Die Ableitung lautet $f'(x)=3x^2-3$.
         catch (_) { setStatus('Der Link steht in der Adresszeile und kann dort kopiert werden.', 'warn'); }
       });
       $('examples').addEventListener('change', event => { if (!event.target.value) return; code.value=examples[event.target.value]; pure.checked=!['text','graph2d','graph3d'].includes(event.target.value); event.target.value=''; render(); });
-      document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', async () => {
-        const prompt = document.getElementById(button.dataset.prompt).textContent;
-        try { await navigator.clipboard.writeText(prompt); setStatus('Prompt kopiert.', 'warn'); }
-        catch (_) { setStatus('Kopieren nicht möglich – Prompt bitte markieren und kopieren.', 'warn'); }
-      }));
       document.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); render(); } });
 
       (() => {
